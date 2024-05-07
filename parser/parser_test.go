@@ -7,6 +7,19 @@ import (
 	"github.com/v-mokhun/golang-interpreter/lexer"
 )
 
+func checkParserErrors(t *testing.T, p *Parser) {
+	errors := p.Errors()
+	if len(errors) == 0 {
+		return
+	}
+
+	t.Errorf("parser has %d errors", len(errors))
+	for _, msg := range errors {
+		t.Errorf("Parser error: %q", msg)
+	}
+	t.FailNow()
+}
+
 func TestLetStatements(t *testing.T) {
 	input := `
 	let x = 5;
@@ -41,19 +54,6 @@ func TestLetStatements(t *testing.T) {
 	}
 }
 
-func checkParserErrors(t *testing.T, p *Parser) {
-	errors := p.Errors()
-	if len(errors) == 0 {
-		return
-	}
-
-	t.Errorf("parser has %d errors", len(errors))
-	for _, msg := range errors {
-		t.Errorf("Parser error: %q", msg)
-	}
-	t.FailNow()
-}
-
 func testLetStatement(t *testing.T, s ast.Statement, name string) bool {
 	if s.TokenLiteral() != "let" {
 		t.Errorf("s.TokenLiteral not 'let'. got=%q", s.TokenLiteral())
@@ -70,6 +70,45 @@ func testLetStatement(t *testing.T, s ast.Statement, name string) bool {
 	}
 	if letStmt.Name.TokenLiteral() != name {
 		t.Errorf("s.Name not '%s'. got=%s", name, letStmt.Name)
+		return false
+	}
+
+	return true
+}
+
+func TestReturnStatements(t *testing.T) {
+	input := `
+	return 5;
+	return 10;
+	return 838383;`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.parseProgram()
+	checkParserErrors(t, p)
+	if program == nil {
+		t.Fatal("ParseProgram() return nil")
+	}
+	if len(program.Statements) != 3 {
+		t.Fatalf("Statements doesn't contain 3 statements, got %d", len(program.Statements))
+	}
+
+	for _, stmt := range program.Statements {
+		if !testReturnStatement(t, stmt) {
+			continue
+		}
+	}
+}
+
+func testReturnStatement(t *testing.T, s ast.Statement) bool {
+	if s.TokenLiteral() != "return" {
+		t.Errorf("s.TokenLiteral not 'lreturn'. got=%q", s.TokenLiteral())
+		return false
+	}
+	_, ok := s.(*ast.ReturnStatement)
+	if !ok {
+		t.Errorf("s not *ast.ReturnStatement. got=%T", s)
 		return false
 	}
 
