@@ -32,6 +32,21 @@ func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 	return true
 }
 
+func testStringObject(t *testing.T, obj object.Object, expected string) bool {
+	result, ok := obj.(*object.String)
+	if !ok {
+		t.Errorf("object is not String, got = %T (%+v)", obj, obj)
+		return false
+	}
+
+	if result.Value != expected {
+		t.Errorf("object has wrong value, got = %q. Want = %q", result.Value, expected)
+		return false
+	}
+
+	return true
+}
+
 func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	result, ok := obj.(*object.Boolean)
 	if !ok {
@@ -215,6 +230,10 @@ func TestErrorHandling(t *testing.T) {
 			"foobar",
 			"identifier not found: foobar",
 		},
+		{
+			`"Hello" - "World"`,
+			"unknown operator: STRING - STRING",
+		},
 	}
 
 	for _, tt := range tests {
@@ -288,12 +307,54 @@ func TestStringLiteral(t *testing.T) {
 	input := `"hello world"`
 
 	evaluated := testEval(input)
-	str, ok := evaluated.(*object.String)
-	if !ok {
-		t.Fatalf("object is not String, got = %T (%+v)", evaluated, evaluated)
+
+	testStringObject(t, evaluated, "hello world")
+}
+
+func TestStringExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{
+			input:    `"Hello" + " " + "World!"`,
+			expected: "Hello World!",
+		},
+		{
+			input:    `"Hello" == "World"`,
+			expected: false,
+		},
+		{
+			input:    `"Hello" == "hello"`,
+			expected: false,
+		},
+		{
+			input:    `"Hello" == "Hello"`,
+			expected: true,
+		},
+		{
+			input:    `"Hello" != "Hello "`,
+			expected: true,
+		},
+		{
+			input:    `"Hello" != "hello"`,
+			expected: true,
+		},
+		{
+			input:    `"Hello" != "Hello"`,
+			expected: false,
+		},
 	}
 
-	if str.Value != "hello world" {
-		t.Errorf("str.Value wrong value, got = %q", str.Value)
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		_, ok := evaluated.(*object.String)
+
+		if ok {
+			testStringObject(t, evaluated, tt.expected.(string))
+		} else {
+			testBooleanObject(t, evaluated, tt.expected.(bool))
+		}
 	}
+
 }
